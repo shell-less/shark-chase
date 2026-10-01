@@ -9,6 +9,7 @@ export const ui = {
   title: el('t'),
   message: el('m'),
   best: el('hs'),
+  tip: el('tip'),
   shop: el('shop'),
   dash: el<HTMLButtonElement>('dash'),
   pause: el<HTMLButtonElement>('pause'),
@@ -34,7 +35,11 @@ export const ui = {
 
 export const MENU_TEXT = ui.message.textContent ?? ''
 
-export const showOverlay = () => (ui.overlay.style.display = 'flex')
+/** Shows the overlay. The how-to-play tip only appears when a caller turns it on afterwards. */
+export function showOverlay() {
+  ui.tip.hidden = true
+  ui.overlay.style.display = 'flex'
+}
 export function hideOverlay() {
   ui.overlay.style.display = 'none'
   ui.best.hidden = true

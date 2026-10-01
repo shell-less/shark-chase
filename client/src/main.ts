@@ -6,7 +6,7 @@ import { draw as drawScene, resize, updateCamera, view } from './render'
 import { bindInput, clearKeys, clearPointer, moveIntent } from './input'
 import { renderShop, tryBuy } from './shop'
 import { duelFrozen, duelScene, initDuel, net, stepCountdown, stepDuel } from './duel'
-import { hideOverlay, overlayVisible, showMainMenu, showOverlay, ui } from './ui'
+import { MENU_TEXT, hideOverlay, overlayVisible, showMainMenu, showOverlay, ui } from './ui'
 import { bestScore, recordScore } from './scores'
 
 const g = ui.canvas.getContext('2d')!
@@ -126,6 +126,8 @@ function over() {
   ui.message.textContent = (sk ? 'You caught ' + s.collected + ' turtles. ' : 'Score ' + sc + ' (' + s.collected + ' pearls at 5 each, plus 1 per second). ') + (nb ? 'New best!' : 'Best: ' + pb + '.')
   ui.playTurtle.textContent = 'Play as turtle'
   showOverlay()
+  ui.tip.textContent = MENU_TEXT
+  ui.tip.hidden = false
   ui.playTurtle.focus()
 }
 
