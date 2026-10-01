@@ -2,7 +2,7 @@
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "shark-chase",
   "main": "src/index.ts",
-  "compatibility_date": "2026-09-01",
+  "compatibility_date": "2026-08-22",
   "observability": { "enabled": true },
   "vars": {
     // The Pages site; any localhost port is always allowed too.

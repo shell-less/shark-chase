@@ -10,9 +10,11 @@
     "build": "npm run build -w client",
     "test": "npm test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces",
-    "deploy:server": "npm run deploy -w server"
+    "deploy:server": "npm run deploy -w server",
+    "e2e": "playwright test -c e2e"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "concurrently": "^10.0.5"
   }
 }

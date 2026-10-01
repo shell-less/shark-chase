@@ -29,5 +29,11 @@ export interface Room {
   onPeers(cb: () => void): void
   /** Every player currently in the room, including us. */
   peers(): Peer[]
+  /** Connection changes: `reconnecting` after a drop, `connected` once back, `lost` when it can't get back in. */
+  onStatus(cb: (status: RoomStatus) => void): void
+  /** Called when the other player leaves on purpose (Back, closing the tab), as opposed to dropping. */
+  onPeerLeft(cb: () => void): void
   leave(): void
 }
+
+export type RoomStatus = 'connected' | 'reconnecting' | 'lost'

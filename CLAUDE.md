@@ -13,10 +13,12 @@ Shark Chase: Turtle Escape is a canvas browser game. The game lives in `client/`
 From the repo root:
 - `npm install`
 - `npm run dev`: `wrangler dev` (port 8787) and Vite (http://localhost:5173/shark-chase/) together
-- `npm test`: Vitest (client sim logic only, runs in node)
+- `npm test`: Vitest in both workspaces. The client tests the sim logic in node; the server runs the Worker and `DuelRoom` inside workerd via `@cloudflare/vitest-pool-workers`
+- `npm run e2e`: optional Playwright duel test across two pages. It starts both dev servers if needed. Run `npx playwright install chromium` first, or set `PW_CHANNEL=chrome`
 - `npm run build`: typecheck, then build the client to `client/dist`
 - `npm run typecheck`: both workspaces
 - After changing `server/wrangler.jsonc`, run `npm run types -w server` to regenerate `worker-configuration.d.ts`
+- The server workspace pins Vitest 4 for the Workers pool; the client uses Vitest 5. The pool's runtime limits `compatibility_date`, so don't set it later than the pool supports.
 
 Pushing to `main` deploys `client/` to GitHub Pages (`pages.yml`), served under `/shark-chase/` (Vite `base`). Pushes that touch `server/` deploy the Worker (`worker.yml`). The client finds the Worker through `VITE_ROOM_URL`: the `ROOM_URL` repo variable in CI, `client/.env.development` locally.
 
@@ -38,16 +40,20 @@ To pass Vite flags like `--port`, run `npx vite ...` inside `client/`. The root 
 - **`src/input.ts`:** keyboard and pointer. `moveIntent(s, view)` turns them into a unit direction. Keys override the pointer.
 - **`src/shop.ts`:** `tryBuy` (pure) and `renderShop`. Re-render whenever coins or upgrade levels change.
 - **`src/duel.ts`:** duel round flow and its UI (`net` state, `onPeers`, `beginRound`, `finish`). Roles alternate each round. Each client reports the result it sees, and `net.done` makes sure a round is only counted once.
-- **`src/net/room.ts`:** the `Room` interface (shared presence). `cfRoom.ts` implements it over a WebSocket to the Worker. It throttles position updates to ~20 Hz and turns refusals into `RoomJoinError`. The Duel button is hidden when no `VITE_ROOM_URL` was built in. Presence field names (`base`, `rd`, `res`, `x/y/a/dd`) are the wire format.
+- **`src/net/room.ts`:** the `Room` interface (shared presence, plus `onStatus` and `onPeerLeft`). `cfRoom.ts` implements it over a WebSocket to the Worker. It throttles position updates to ~20 Hz, turns refusals into `RoomJoinError`, and reconnects on its own after a drop.
+- **Duel endings (`src/duel.ts`):** a watchdog ends the duel if we've been offline, or the opponent has been missing, for `DROP_GRACE_MS` (5s). A deliberate leave ends it immediately. A friend who leaves mid-round forfeits that round. The Duel button is hidden when no `VITE_ROOM_URL` was built in. Presence field names (`base`, `rd`, `res`, `x/y/a/dd`) are the wire format.
 - **`src/ui.ts`:** DOM element lookups and overlay helpers. The markup and CSS live in `client/index.html`.
 
 ## Server
 
 - **`server/src/index.ts`:** routes `GET /room/:code` (four capital letters) to the `DuelRoom` Durable Object, after checking the WebSocket upgrade and the `Origin`.
-- **`server/src/room.ts`:** `DuelRoom` uses the WebSocket Hibernation API. Each socket's `{id, presence}` lives in its attachment, and nothing goes to storage.
-  - A room exists only while someone is connected. `?create=1` needs it empty, a plain join needs it occupied, and the maximum is 2.
-  - It refuses by closing with 4009 (taken), 4004 (missing) or 4003 (full).
-  - Messages: client → `{presence: patch}`; server → `{you: id}` once, then `{peers: [{id, presence}]}`.
+- **`server/src/room.ts`:** `DuelRoom` uses the WebSocket Hibernation API. Each socket's `{id, presence, seats}` lives in its attachment, and nothing goes to storage.
+  - Players connect with their own `?id=<uuid>`. A room exists only while someone is connected. `?create=1` needs it empty, a plain join needs it occupied, and the maximum is 2.
+  - Once two players are in, both seats are reserved for their ids, so a dropped player can rejoin and a stranger can't. Rejoining replaces a stale socket.
+  - Refusals are close codes: 4009 taken, 4004 missing, 4003 full, 4000 bad id. 4001 means replaced; 1009 and 1008 mean too big and too many messages.
+  - Refused sockets are accepted with the `refused` tag only so the code can be delivered. Players have the `player` tag, so always use `getWebSockets('player')`.
+  - Messages: client → `{presence: patch}`; server → `{you: id}` per connection, then `{peers: [{id, presence}], left?: id}`. `left` means that player closed on purpose (1000/1001), not dropped.
+- **`server/src/presence.ts`:** `validPatch` whitelists presence fields and their types. Add a field there before the client starts sending it.
 - Game outcomes are still decided by the clients. The server only relays presence.
 
 ## Conventions

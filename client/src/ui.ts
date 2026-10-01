@@ -14,6 +14,7 @@ export const ui = {
   duel: el<HTMLButtonElement>('bd'),
   duelPanel: el('dp'),
   duelStatus: el('ds'),
+  duelNotice: el('dn'),
   createRow: el('d1'),
   joinRow: el('d2'),
   createTurtle: el<HTMLButtonElement>('dct'),

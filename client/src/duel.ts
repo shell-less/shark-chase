@@ -26,11 +26,15 @@ interface NetState {
   /** Last round whose result we counted. */
   done: number
   code: string
+  /** When our socket dropped, or null while connected. */
+  offlineSince: number | null
+  /** When the opponent disappeared without saying goodbye, or null. */
+  missingSince: number | null
 }
 
 const NET0: NetState = {
   phase: 'menu', round: 1, me: 0, opp: 0, left: DUEL_TIME, countdown: DUEL_COUNTDOWN, opponent: null,
-  role: 'turtle', base: null, host: false, room: null, ready: 0, done: 0, code: '',
+  role: 'turtle', base: null, host: false, room: null, ready: 0, done: 0, code: '', offlineSince: null, missingSince: null,
 }
 
 export const net: NetState = { ...NET0 }
@@ -71,6 +75,8 @@ function openDuelMenu() {
 /** Returns to the main menu. */
 function leaveDuel() {
   attempt++
+  clearInterval(watchdog)
+  ui.duelNotice.hidden = true
   net.room?.leave()
   resetNet()
   ui.duelPanel.hidden = true
@@ -117,6 +123,55 @@ async function joinDuel(code: string | null, base: Role | null) {
   showDuel('wait')
   ui.duelStatus.textContent = base ? 'Room ' + c + '. Send this code to your friend and keep this page open.' : 'Joined room ' + c + '.'
   room.onPeers(onPeers)
+  room.onStatus(st => {
+    if (st === 'lost') endDuel('lost')
+    else if (st === 'reconnecting') net.offlineSince ??= performance.now()
+    else net.offlineSince = null
+  })
+  room.onPeerLeft(() => {
+    if (net.phase !== 'wait') endDuel('left')
+  })
+  watchdog = setInterval(watch, 250)
+}
+
+/** How long a dropped connection, ours or theirs, gets to come back before the duel ends. */
+export const DROP_GRACE_MS = 5000
+let watchdog = 0
+
+/** Ends the duel when either side has been gone too long, and keeps the drop notice current. */
+function watch() {
+  const now = performance.now()
+  if (net.offlineSince !== null && now - net.offlineSince > DROP_GRACE_MS) return endDuel('lost')
+  if (net.phase !== 'wait' && net.offlineSince === null) {
+    if (peerOf()) net.missingSince = null
+    else if (net.missingSince === null) net.missingSince = now
+    else if (now - net.missingSince > DROP_GRACE_MS) return endDuel('left')
+  }
+  const n = notice()
+  ui.duelNotice.hidden = !n
+  ui.duelNotice.textContent = n ?? ''
+}
+
+const notice = () =>
+  net.offlineSince !== null ? 'Connection dropped. Reconnecting...' : net.missingSince !== null ? 'Your friend dropped. Waiting for them...' : null
+
+/** Ends the whole duel and returns to the main menu. A friend leaving mid-round forfeits it. */
+function endDuel(reason: 'left' | 'lost') {
+  if (!net.room) return
+  const inRound = net.phase === 'count' || net.phase === 'play'
+  if (inRound) {
+    if (reason === 'left') net.me++
+    hooks.halt()
+  }
+  const score = net.me + net.opp ? ' Final score: you ' + net.me + ', friend ' + net.opp + '.' : ''
+  const why = reason === 'left'
+    ? inRound ? 'Your friend left mid-round, so you win it.' : 'Your friend left the duel.'
+    : inRound ? 'Your connection dropped and did not come back in time.' : 'Your connection to the duel dropped.'
+  leaveDuel()
+  hooks.leave()
+  ui.title.textContent = reason === 'left' ? 'Your friend left' : 'Connection lost'
+  ui.message.textContent = why + score
+  showOverlay()
 }
 
 function onPeers() {
@@ -208,6 +263,7 @@ function finish(w: Role, announce: boolean) {
 }
 
 export const duelScene = (): DuelScene => ({
+  notice: notice(),
   role: net.role,
   opponent: net.opponent,
   left: net.left,

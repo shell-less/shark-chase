@@ -81,13 +81,24 @@ Found during the port:
   - The worker deploys with `cloudflare/wrangler-action` (`.github/workflows/worker.yml`) using the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repo secrets, on pushes that touch `server/`.
   - `npm run dev` runs `wrangler dev` and `vite` together.
 - [x] Remove the claude.ai-specific code path and the "signed in to claude.ai" wording.
-- [ ] First deploy: push, take the Worker URL from the deploy log, set it as the `ROOM_URL` repo variable, then re-run the Pages workflow. Play one duel on the live site.
+- [x] First deploy: push, take the Worker URL from the deploy log, set it as the `ROOM_URL` repo variable, then re-run the Pages workflow. The live site reaches the Worker.
 
 ### 4. Hardening
-- **Opponent leaves mid-round:** today the game waits forever. Show a message and return to the menu.
-- **Reconnects:** add backoff and retry. A dropped socket during a round counts as a forfeit after a few seconds.
-- **Abuse limits:** cap message size and rate in the DO, and drop malformed patches.
-- **Tests:** cover the DO with `@cloudflare/vitest-pool-workers`. Add an optional Playwright smoke test that plays a duel across two pages.
+- [x] **Opponent leaves mid-round:** today the game waits forever. Show a message and return to the menu.
+  - A deliberate leave (Back, closing or reloading the tab: close code 1000/1001) is announced by the server as `left`, and the other player's duel ends at once.
+  - Mid-round, the player who stays wins that round by forfeit. Both sides return to the main menu with the final score.
+- [x] **Reconnects:** add backoff and retry. A dropped socket during a round counts as a forfeit after a few seconds.
+  - Each client has a player id (`?id=`). Once two players are in, the room reserves both seats, so only they can rejoin. A rejoin replaces a stale socket (close 4001).
+  - `cfRoom.ts` retries at 250ms, doubling up to 2s, then resends its full presence.
+  - The duel ends after 5s (`DROP_GRACE_MS`) on both sides: "Connection lost" for the dropped player, a forfeit win for the other. Meanwhile the HUD or the duel panel shows a notice.
+- [x] **Abuse limits:** cap message size and rate in the DO, and drop malformed patches.
+  - Messages are capped at 512 bytes (close 1009).
+  - Rate uses a token bucket of 30/s with a burst of 60. Extra messages are dropped, and a socket that keeps flooding is closed with 1008.
+  - `server/src/presence.ts` checks every field's type and range and drops the whole patch on any unknown key.
+- [x] **Tests:** cover the DO with `@cloudflare/vitest-pool-workers`. Add an optional Playwright smoke test that plays a duel across two pages.
+  - `server/test/room.test.ts` covers routing and origins, create/join/full, relaying, malformed patches, leaving vs. dropping, seat reservation, replacement and both limits.
+  - The pool needs Vitest 4, so the server workspace pins it while the client stays on 5. Its runtime also caps `compatibility_date` (now 2026-08-22).
+  - `e2e/duel.spec.ts` (`npm run e2e`, not in CI) covers a full round, wrong code / room full, a friend leaving, a socket that drops and comes back, and one that stays down. It cuts sockets by proxying them with `routeWebSocket`.
 
 ## Deliberately deferred
 

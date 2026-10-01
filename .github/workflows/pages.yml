@@ -24,7 +24,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm test
+      - run: npm test -w client
       - run: npm run build
         env:
           # The room Worker's URL. Duels stay hidden until this repo variable is set.

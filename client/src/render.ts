@@ -23,6 +23,8 @@ export interface DuelScene {
   me: number
   opp: number
   countdown: number | null
+  /** Connection trouble to show under the score, if any. */
+  notice: string | null
 }
 
 export interface Scene {
@@ -212,6 +214,7 @@ export function draw(g: Ctx, { mode, s, duel }: Scene) {
     : (mode === 'shark' ? 'Turtles ' : 'Pearls ') + s.coins
   g.fillText(timeText, 14, 36)
   g.fillText(scoreText, 14, 60)
+  if (duel?.notice) g.fillText(duel.notice, 14, 84)
   if (duel && duel.countdown !== null) {
     g.font = '700 80px Fredoka,sans-serif'; g.textAlign = 'center'
     g.fillText(String(Math.max(1, Math.ceil(duel.countdown))), VW / 2, VH / 2)
