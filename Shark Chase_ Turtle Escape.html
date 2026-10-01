@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shark Chase: Turtle Escape</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#041a21;--ink:#e9efe6;--accent:#e9784a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#03141a}}
+:root[data-theme="dark"]{--bg:#03141a}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:'Fredoka',system-ui,sans-serif;overflow:hidden;touch-action:none;user-select:none}
+#wrap{position:relative;width:100%;height:100%}
+canvas{width:100%;height:100%;display:block}
+#ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;background:rgba(3,20,26,.8)}
+h1{font-size:clamp(2rem,7vw,3.2rem);margin:0 0 8px;font-weight:700}
+p{margin:0 0 18px;max-width:40ch;line-height:1.4;font-weight:500}
+button{font:inherit;font-weight:700;font-size:1.2rem;padding:12px 30px;border:0;border-radius:999px;background:var(--accent);color:#200c03;cursor:pointer}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+#dash{position:absolute;right:12px;bottom:12px;width:78px;height:78px;padding:0;font-size:1rem}
+#dash[disabled]{opacity:.4}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
+[hidden]{display:none!important}
+#dp button{font-size:1rem;padding:10px 18px}
+#dx{background:transparent;color:var(--ink);border:2px solid var(--ink)}
+input{font:inherit;font-weight:700;font-size:1.1rem;width:6ch;padding:10px 14px;border-radius:999px;border:2px solid var(--ink);background:transparent;color:var(--ink);text-transform:uppercase;text-align:center;user-select:text}
+#shop{position:absolute;left:10px;bottom:10px;display:flex;gap:6px;flex-wrap:wrap;max-width:calc(100% - 110px)}
+#shop button{font-size:.8rem;line-height:1.25;padding:6px 10px;border-radius:12px;background:#d9e8df;color:#0a2a30;text-align:left}
+#shop button[disabled]{opacity:.45;cursor:default}
+</style>
+</head>
+<body>
+<div id="wrap">
+<canvas id="c" aria-label="Turtle chase game"></canvas>
+<div id="shop"></div>
+<button id="dash" disabled>Dash (Q)</button>
+<div id="ov"><h1 id="t">Shark Chase</h1><p id="m">Choose a side. Turtle: escape the sharks and collect pearls. Shark: hunt the turtles before time runs out. Drag to move, Q to dash, keys 1 to 4 (or the bottom buttons) to buy upgrades.</p><div class="row" id="solo"><button id="b">Play as turtle</button><button id="bs">Play as shark</button><button id="bd">Duel a friend</button></div><div id="dp" hidden><p id="ds"></p><div class="row" id="d1"><button id="dct">Create room as turtle</button><button id="dcs">Create room as shark</button></div><div class="row" id="d2"><input id="ci" maxlength="4" placeholder="Code" aria-label="Room code" autocomplete="off"><button id="dj">Join room</button></div><div class="row"><button id="dr" hidden>I'm ready</button><button id="dx">Back</button></div></div></div>
+</div>
+<script>
+let WW=1800,WH=1300;const cv=document.getElementById('c'),g=cv.getContext('2d');
+const ov=document.getElementById('ov'),bt=document.getElementById('b'),tt=document.getElementById('t'),mm=document.getElementById('m'),db=document.getElementById('dash'),shop=document.getElementById('shop'),bs=document.getElementById('bs');
+let best=0;try{best=+localStorage.getItem('chase-best')||0}catch(e){}
+const specks=Array.from({length:500},()=>({x:Math.random()*WW,y:Math.random()*WH,r:Math.random()*1.6+.4}));
+const UPS=[{n:'Fins',k:'f',max:5,c:l=>3+2*l},{n:'Lunge',k:'d',max:5,c:l=>4+2*l},{n:'Jaws',k:'m',max:4,c:l=>2+2*l},{n:'Stamina',k:'t',max:3,c:l=>5+2*l}];let UP,mode='turtle';const UPT=[{n:'Flippers',k:'f',max:5,c:l=>3+2*l},{n:'Dash',k:'d',max:5,c:l=>4+2*l},{n:'Magnet',k:'m',max:4,c:l=>2+2*l},{n:'Shield',k:'h',max:2,c:()=>6}];
+let s,keys={},tp=null,raf,last=0,VW=360,VH=540,Z=1,dpr=1,CX=0,CY=0;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function rs(){dpr=Math.min(2,devicePixelRatio||1);VW=cv.clientWidth;VH=cv.clientHeight;cv.width=VW*dpr;cv.height=VH*dpr;Z=clamp(Math.min(VW,VH)/560,.7,1.15);if(s)draw()}
+addEventListener('resize',rs);
+function cam(){const vw=VW/Z,vh=VH/Z;CX=vw>=WW?(WW-vw)/2:clamp(s.x-vw/2,0,WW-vw);CY=vh>=WH?(WH-vh)/2:clamp(s.y-vh/2,0,WH-vh)}
+function reset(){WW=mode==='duel'?1000:1800;WH=mode==='duel'?760:1300;s={t:0,x:WW/2,y:WH/2,a:-Math.PI/2,dc:0,dd:0,cdm:2.2,coins:0,got:0,sh:[],pr:[],next:14,grace:1.5,bub:[],up:{f:0,d:0,m:0,h:0}};tp=null;UP=mode==='shark'?UPS:mode==='duel'?[]:UPT;if(mode==='duel'){s.grace=0;s.up.f=net.role==='shark'?1:0;s.x=net.role==='shark'?250:750;s.y=380;s.a=net.role==='shark'?0:Math.PI}else if(mode==='shark'){s.tu=[];s.left=40;s.grace=0;s.up.t=0;for(let i=0;i<7;i++)addTu()}else{addShark();for(let i=0;i<4;i++)addPearl()}refresh()}
+function addShark(){let x,y,n=0;do{const an=Math.random()*6.28,r=450+Math.random()*200;x=s.x+Math.cos(an)*r;y=s.y+Math.sin(an)*r;n++}while((x<30||x>WW-30||y<30||y>WH-30)&&n<30);x=clamp(x,30,WW-30);y=clamp(y,30,WH-30);
+  s.sh.push({x,y,a:Math.atan2(s.y-y,s.x-x),sp:112+s.sh.length*5,w:Math.random()*6,lc:2+Math.random()*1.5,lg:0})}
+function addPearl(){let x,y;do{x=40+Math.random()*(WW-80);y=40+Math.random()*(WH-80)}while(Math.hypot(x-s.x,y-s.y)<120);s.pr.push({x,y})}
+function refresh(){shop.innerHTML='';UP.forEach((u,i)=>{const lv=s.up[u.k],c=u.c(lv),b=document.createElement('button');
+  b.innerHTML=(i+1)+' '+u.n+' '+lv+'/'+u.max+'<br>'+(lv>=u.max?'maxed':c+(mode==='shark'?' catches':' pearls'));b.disabled=lv>=u.max||s.coins<c;b.onclick=()=>buy(i);shop.appendChild(b)})}
+function buy(i){const u=UP[i];if(!s||s.over)return;const lv=s.up[u.k],c=u.c(lv);if(lv>=u.max||s.coins<c)return;s.coins-=c;s.up[u.k]++;if(u.k==='t')s.left+=8;refresh()}
+function start(m){mode=m;reset();ov.style.display='none';db.disabled=false;last=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(loop)}
+function dash(){if(mode==='duel'&&net.ph!=='play')return;if(s&&!s.over&&s.dc<=0){const t=mode==='turtle'||(mode==='duel'&&net.role==='turtle');s.dd=.28+(t?.015:.03)*s.up.d;s.cdm=(t?3.2:2.2)-(t?.12:.25)*s.up.d;s.dc=s.cdm}}
+bt.onclick=()=>start('turtle');bs.onclick=()=>start('shark');db.addEventListener('pointerdown',e=>{e.stopPropagation();dash()});
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;const k=e.key.toLowerCase();keys[k]=1;if(k==='q'||k===' ')dash();if(k.length===1&&'1234'.includes(k))buy(+k-1);if(k==='enter'&&ov.style.display!=='none'&&dp.hidden&&!net.r)start('turtle')});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
+function pos(e){tp={x:e.clientX-cv.getBoundingClientRect().left,y:e.clientY-cv.getBoundingClientRect().top}}
+cv.addEventListener('pointerdown',pos);cv.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType==='mouse')pos(e)});
+function update(dt){
+  if(mode==='duel'&&net.ph!=='play'){cam();s.t+=dt;return updC(dt)}
+  cam();s.t+=dt;if(s.grace>0)s.grace-=dt;if(s.dc>0)s.dc-=dt;
+  let dx=0,dy=0;if(keys.arrowleft||keys.a)dx=-1;if(keys.arrowright||keys.d)dx=1;if(keys.arrowup||keys.w)dy=-1;if(keys.arrowdown||keys.s)dy=1;
+  if(dx||dy){tp=null;const l=Math.hypot(dx,dy);dx/=l;dy/=l}
+  else if(tp){const ex=tp.x/Z+CX-s.x,ey=tp.y/Z+CY-s.y,d=Math.hypot(ex,ey);if(d>6){dx=ex/d;dy=ey/d}}
+  const sp=s.dd>0?400:150*(1+.1*s.up.f);if(s.dd>0)s.dd-=dt;
+  if(dx||dy){s.x+=dx*sp*dt;s.y+=dy*sp*dt;s.a=Math.atan2(dy,dx)}
+  s.x=clamp(s.x,16,WW-16);s.y=clamp(s.y,16,WH-16);
+  if(Math.random()<dt*6)s.bub.push({x:s.x,y:s.y,t:0});
+  for(const b of s.bub){b.t+=dt;b.y-=25*dt}s.bub=s.bub.filter(b=>b.t<1);
+  if(mode==='duel')return updD(dt);
+  if(mode==='shark')return updS(dt);
+  s.next-=dt;if(s.next<=0&&s.sh.length<5){addShark();s.next=14}
+  for(const k of s.sh){
+    const dist=Math.hypot(s.x-k.x,s.y-k.y);
+    k.lc-=dt;
+    if(k.lg>0)k.lg-=dt;else if(dist<170&&k.lc<=0&&s.grace<=0){k.lg=.45;k.lc=3.2+Math.random()*1.5}
+    const lunging=k.lg>0;
+    const want=Math.atan2(s.y-k.y,s.x-k.x);let d=want-k.a;d=Math.atan2(Math.sin(d),Math.cos(d));
+    const tr=(lunging?.9:2.1)*dt;k.a+=clamp(d,-tr,tr);
+    const v=k.sp*(lunging?2.3:1)*(1+Math.min(.25,s.t*.003));
+    k.x+=Math.cos(k.a)*v*dt;k.y+=Math.sin(k.a)*v*dt;k.w+=dt*(lunging?13:5);
+    const hx=k.x+Math.cos(k.a)*24,hy=k.y+Math.sin(k.a)*24;
+    if(s.grace<=0&&(Math.hypot(hx-s.x,hy-s.y)<20||dist<22)){
+      if(s.up.h>0){s.up.h--;s.grace=1.5;k.lc=3;k.lg=0;const an=Math.atan2(k.y-s.y,k.x-s.x);k.x=s.x+Math.cos(an)*120;k.y=s.y+Math.sin(an)*120;k.a=an+Math.PI;refresh()}
+      else return over();
+    }
+  }
+  const pr=22+18*s.up.m;
+  s.pr=s.pr.filter(p=>{if(Math.hypot(p.x-s.x,p.y-s.y)<pr){s.coins++;s.got++;addPearl();refresh();return false}return true});
+}
+function addTu(){let x,y;do{x=60+Math.random()*(WW-120);y=60+Math.random()*(WH-120)}while(Math.hypot(x-s.x,y-s.y)<450);s.tu.push({x,y,a:Math.random()*6.28,ph:Math.random()*9,b:0,dc:Math.random()*3})}
+function drawTurtleAt(x,y,a,ph,fast){const o=[s.x,s.y,s.a,s.t,s.dd];s.x=x;s.y=y;s.a=a;s.t=ph;s.dd=fast?1:0;drawTurtle();[s.x,s.y,s.a,s.t,s.dd]=o}
+function updS(dt){
+  s.left-=dt;if(s.left<=0){s.left=0;return over()}
+  const hx=s.x+Math.cos(s.a)*24,hy=s.y+Math.sin(s.a)*24,jr=20+8*s.up.m;
+  for(let i=0;i<s.tu.length;i++){const u=s.tu[i];
+    if(Math.hypot(u.x-hx,u.y-hy)<jr){s.coins++;s.got++;s.left+=5;s.tu.splice(i,1);addTu();refresh();i--;continue}
+    const ds=Math.hypot(u.x-s.x,u.y-s.y);u.dc-=dt;if(u.b>0)u.b-=dt;
+    let w=ds<300?Math.atan2(u.y-s.y,u.x-s.x):u.a+Math.sin(s.t+u.ph)*.05;
+    if(ds<140&&u.dc<=0){u.b=.35;u.dc=4+Math.random()*2}
+    let fx=Math.cos(w),fy=Math.sin(w);
+    if(u.x<110)fx+=1.5;if(u.x>WW-110)fx-=1.5;if(u.y<110)fy+=1.5;if(u.y>WH-110)fy-=1.5;
+    w=Math.atan2(fy,fx);let e=w-u.a;e=Math.atan2(Math.sin(e),Math.cos(e));const tr=4*dt;u.a+=clamp(e,-tr,tr);
+    const v=u.b>0?310:118+Math.min(25,s.got*2);
+    u.x=clamp(u.x+Math.cos(u.a)*v*dt,20,WW-20);u.y=clamp(u.y+Math.sin(u.a)*v*dt,20,WH-20);u.ph+=dt}
+}
+const MENU=mm.textContent,bd=document.getElementById('bd'),dp=document.getElementById('dp'),ds=document.getElementById('ds'),ci=document.getElementById('ci'),dr=document.getElementById('dr'),d1=document.getElementById('d1'),d2=document.getElementById('d2'),soloRow=document.getElementById('solo');
+const NET0={ph:'menu',round:1,me:0,opp:0,left:50,cd:3,o:null,role:'turtle',base:null,host:false,r:null,ready:0,done:0,code:''};
+let net={...NET0};
+const flip=r=>r==='turtle'?'shark':'turtle';
+const roleFor=()=>net.round%2?net.base:flip(net.base);
+const peerOf=()=>net.r&&net.r.peers().find(p=>!p.isMe&&p.kind==='viewer');
+function showDuel(st){ov.style.display='flex';soloRow.hidden=true;dp.hidden=false;d1.hidden=d2.hidden=st!=='menu';dr.hidden=!(st==='ready'||st==='next');dr.disabled=false;dr.textContent=st==='next'?'Next round (sides swap)':"I'm ready"}
+bd.onclick=()=>{tt.textContent='Duel a friend';mm.innerHTML='<b>How duels work</b><br>1. One player creates a room as turtle or shark and sends the 4-letter code.<br>2. The other player opens this page, presses Duel a friend, types the code and joins. They get the other side.<br>3. Both press I\'m ready. After a 3-second countdown the round starts.<br>The shark wins by catching the turtle. The turtle wins by surviving 50 seconds. Sides swap every round.<br>Drag or use arrow keys to move, Q to dash. Your friend must open this page signed in to claude.ai.';ds.textContent='';showDuel('menu')};
+function leaveDuel(){if(net.r)net.r.leave();net={...NET0};mode='turtle';dp.hidden=true;soloRow.hidden=false;tt.textContent='Shark Chase';mm.textContent=MENU}
+const mk=()=>Array.from({length:4},()=>'ABCDEFGHJKMNPQRSTUVWXYZ'[Math.floor(Math.random()*23)]).join('');
+document.getElementById('dct').onclick=()=>joinDuel(mk(),'turtle');
+document.getElementById('dcs').onclick=()=>joinDuel(mk(),'shark');
+document.getElementById('dj').onclick=()=>{const c=ci.value.trim().toUpperCase();if(!/^[A-Z]{4}$/.test(c)){ds.textContent='Enter the 4 letter code.';return}joinDuel(c,null)};
+document.getElementById('dx').onclick=leaveDuel;
+async function joinDuel(code,base){
+  ds.textContent='Connecting...';let room=null;
+  try{const R=window.claude?await window.claude.use('room'):null;if(R)room=await R.join('duel-'+code.toLowerCase())}catch(e){}
+  if(!room){ds.textContent='Duels are not available here. You and your friend both need to open this page signed in to claude.ai.';return}
+  net={...NET0,r:room,code,base,host:!!base,ph:'wait'};
+  room.presence({base:base||null});room.onPeers(onP);showDuel('wait');
+  ds.textContent=base?'Room '+code+'. Send this code to your friend and keep this page open.':'Looking for room '+code+'. Check the code if nothing happens.';
+}
+function onP(){
+  const op=peerOf();if(!op)return;const pr=op.presence;
+  if(!net.base&&pr.base)net.base=flip(pr.base);
+  if(!net.base)return;
+  if(net.ph==='wait'){net.ph='ready';net.role=roleFor();ds.textContent='Friend joined. Round 1: you are the '+net.role+'.';showDuel('ready')}
+  if(net.ph==='play'){if(net.o&&typeof pr.x==='number'){net.o.tx=pr.x;net.o.ty=pr.y;net.o.ta=pr.a;net.o.dd=pr.dd}
+    if(pr.res&&pr.res.r===net.round)finish(pr.res.w,false)}
+  checkStart(pr);
+}
+function checkStart(pr){if(net.ph==='ready'&&net.ready===net.round&&pr.rd===net.round)beginRound()}
+dr.onclick=()=>{if(net.ph==='end'){net.round++;net.ph='ready'}net.role=roleFor();net.ready=net.round;net.r.presence({rd:net.round,res:null});dr.disabled=true;ds.textContent='Round '+net.round+': you are the '+net.role+'. Waiting for your friend...';const op=peerOf();if(op)checkStart(op.presence)};
+function beginRound(){
+  net.role=roleFor();net.left=50;net.cd=3;net.ph='count';
+  const sh=net.role==='shark',ox=sh?750:250,oa=sh?Math.PI:0;
+  net.o={x:ox,y:380,tx:ox,ty:380,a:oa,ta:oa,dd:0};
+  net.r.presence({x:sh?250:750,y:380,a:sh?0:Math.PI,dd:0,role:net.role});
+  start('duel');
+}
+function updC(dt){if(net.ph==='count'){net.cd-=dt;if(net.cd<=0)net.ph='play'}}
+function updD(dt){
+  net.left-=dt;
+  const o=net.o;if(o){const k=Math.min(1,dt*14);o.x+=(o.tx-o.x)*k;o.y+=(o.ty-o.y)*k;o.a=o.ta}
+  net.r.presence({x:Math.round(s.x),y:Math.round(s.y),a:+s.a.toFixed(2),dd:s.dd>0?1:0});
+  if(net.role==='shark'&&o){const hx=s.x+Math.cos(s.a)*24,hy=s.y+Math.sin(s.a)*24;if(Math.hypot(hx-o.x,hy-o.y)<22||Math.hypot(s.x-o.x,s.y-o.y)<24)return finish('shark',true)}
+  if(net.left<=0&&(net.role==='turtle'||net.left<-1.5))return finish('turtle',true);
+}
+function finish(w,ann){
+  if(net.done===net.round)return;net.done=net.round;
+  if(ann)net.r.presence({res:{r:net.round,w}});
+  if(w===net.role)net.me++;else net.opp++;
+  s.over=1;net.ph='end';cancelAnimationFrame(raf);db.disabled=true;draw();
+  tt.textContent=w===net.role?'You win this round':'You lose this round';
+  mm.textContent=(w==='shark'?'The shark caught the turtle. ':'The turtle survived. ')+'Score: you '+net.me+', friend '+net.opp+'.';
+  ds.textContent='';showDuel('next');
+}
+function over(){
+  cancelAnimationFrame(raf);s.over=1;db.disabled=true;
+  const sk=mode==='shark',sc=sk?s.got:Math.floor(s.t)+s.got*5,bk=sk?'shark-best':'chase-best';let pb=0;try{pb=+localStorage.getItem(bk)||0}catch(e){}
+  const nb=sc>pb;if(nb){pb=sc;try{localStorage.setItem(bk,sc)}catch(e){}}
+  draw();tt.textContent=sk?"Time's up":'Caught after '+Math.floor(s.t)+'s';
+  mm.textContent=(sk?'You caught '+s.got+' turtles. ':'Score '+sc+' ('+s.got+' pearls at 5 each, plus 1 per second). ')+(nb?'New best!':'Best: '+pb+'.');
+  bt.textContent='Play as turtle';ov.style.display='flex';bt.focus();
+}
+function drawTurtle(){
+  g.save();g.translate(s.x+5,s.y+7);g.rotate(s.a+Math.PI/2);g.fillStyle='rgba(0,0,0,.22)';g.beginPath();g.ellipse(0,0,24,28,0,0,7);g.fill();g.restore();
+  g.save();g.translate(s.x,s.y);g.rotate(s.a+Math.PI/2);
+  const fl=Math.sin(s.t*(s.dd>0?26:10))*.45;
+  g.fillStyle='#5fa86a';
+  for(const sd of[-1,1]){
+    g.save();g.translate(sd*14,-8);g.rotate(sd*(.7-fl*sd));g.beginPath();g.ellipse(sd*9,0,14,5,0,0,7);g.fill();g.restore();
+    g.save();g.translate(sd*10,16);g.rotate(sd*(-.5-fl*.5));g.beginPath();g.ellipse(sd*6,0,8,4,0,0,7);g.fill();g.restore();
+  }
+  g.beginPath();g.ellipse(0,-22,9,10,0,0,7);g.fill();
+  g.fillStyle='#0d2a30';g.beginPath();g.arc(-4,-25,1.8,0,7);g.arc(4,-25,1.8,0,7);g.fill();
+  const sg=g.createRadialGradient(-4,-4,2,0,2,24);sg.addColorStop(0,'#c49a58');sg.addColorStop(1,'#7a5a2c');
+  g.fillStyle=sg;g.beginPath();g.ellipse(0,2,17,21,0,0,7);g.fill();
+  g.strokeStyle='#5a4020';g.lineWidth=1.6;g.beginPath();g.ellipse(0,2,17,21,0,0,7);g.moveTo(-10,-7);g.lineTo(10,-7);g.moveTo(-12,9);g.lineTo(12,9);g.moveTo(0,-19);g.lineTo(0,22);g.moveTo(-10,-7);g.lineTo(-12,9);g.moveTo(10,-7);g.lineTo(12,9);g.stroke();
+  g.restore();
+  for(let i=0;i<s.up.h;i++){g.strokeStyle='rgba(160,230,255,'+(.55+Math.sin(s.t*5)*.15)+')';g.lineWidth=2;g.beginPath();g.arc(s.x,s.y,28+i*5,0,7);g.stroke()}
+}
+const L=96,N=16;
+function hw(u){return u<.3?14*Math.pow(Math.sin(u/.3*Math.PI/2),.6):14-11.5*Math.pow((u-.3)/.7,.9)}
+function spine(k,u){return{x:38-u*L,y:Math.sin(k.w-u*3.2)*u*u*10}}
+function bodyPath(k,f){
+  g.beginPath();
+  for(let i=0;i<=N;i++){const u=i/N,p=spine(k,u),h=hw(u)*f;i?g.lineTo(p.x,p.y-h):g.moveTo(p.x,p.y-h)}
+  for(let i=N;i>=0;i--){const u=i/N,p=spine(k,u),h=hw(u)*f;g.lineTo(p.x,p.y+h)}
+  g.closePath();
+}
+function drawShark(k){
+  g.save();g.translate(k.x+9,k.y+12);g.rotate(k.a);g.fillStyle='rgba(0,0,0,.2)';bodyPath(k,1);g.fill();g.restore();
+  g.save();g.translate(k.x,k.y);g.rotate(k.a);
+  const t=spine(k,1);
+  g.fillStyle='#3a4852';
+  for(const sd of[-1,1]){const p=spine(k,.3),h=hw(.3);
+    g.beginPath();g.moveTo(p.x+4,p.y+sd*(h-2));g.lineTo(p.x-26,p.y+sd*(h+22));g.lineTo(p.x-16,p.y+sd*(h-1));g.closePath();g.fill();
+    const q=spine(k,.62);g.beginPath();g.moveTo(q.x,q.y+sd*(hw(.62)-1));g.lineTo(q.x-12,q.y+sd*(hw(.62)+8));g.lineTo(q.x-8,q.y+sd*(hw(.62)-1));g.closePath();g.fill();}
+  g.save();g.translate(t.x,t.y);g.rotate(Math.sin(k.w-3.2)*.45);
+  g.beginPath();g.moveTo(5,0);g.quadraticCurveTo(-8,-6,-30,-26);g.quadraticCurveTo(-19,-5,-14,0);g.quadraticCurveTo(-18,9,-20,17);g.quadraticCurveTo(-6,7,5,0);g.fill();g.restore();
+  g.fillStyle='#4a5a66';bodyPath(k,1);g.fill();
+  g.fillStyle='#37444e';bodyPath(k,.5);g.fill();
+  g.strokeStyle='rgba(200,215,225,.3)';g.lineWidth=1.5;bodyPath(k,1);g.stroke();
+  g.strokeStyle='#2a353d';g.lineWidth=1.3;
+  for(const sd of[-1,1])for(let i=0;i<4;i++){const u=.2+i*.03,p=spine(k,u),h=hw(u);g.beginPath();g.moveTo(p.x,p.y+sd*(h-1));g.lineTo(p.x-2,p.y+sd*(h-6));g.stroke()}
+  const dp=spine(k,.4);g.fillStyle='#2e3a43';g.beginPath();g.moveTo(dp.x+3,dp.y);g.lineTo(dp.x-16,dp.y+2);g.lineTo(dp.x-6,dp.y-2);g.closePath();g.fill();
+  g.fillStyle='#0a1418';const e=spine(k,.09);for(const sd of[-1,1]){g.beginPath();g.arc(e.x,e.y+sd*hw(.09)*.8,1.9,0,7);g.fill()}
+  g.restore();
+}
+function draw(){
+  cam();
+  g.setTransform(dpr,0,0,dpr,0,0);g.fillStyle='#020d11';g.fillRect(0,0,VW,VH);
+  g.setTransform(dpr*Z,0,0,dpr*Z,-CX*dpr*Z,-CY*dpr*Z);
+  const gr=g.createLinearGradient(0,0,0,WH);gr.addColorStop(0,'#16707a');gr.addColorStop(1,'#06303c');
+  g.fillStyle=gr;g.fillRect(0,0,WW,WH);
+  g.fillStyle='rgba(210,225,215,.09)';for(const p of specks){g.beginPath();g.arc(p.x,p.y,p.r,0,7);g.fill()}
+  g.fillStyle='rgba(255,255,255,.035)';
+  for(let i=0;i<22;i++){g.beginPath();g.ellipse((i*167+s.t*(8+i%5*2))%(WW+80)-40,(i*241+s.t*5)%(WH+40),60,18,.4,0,7);g.fill()}
+  g.strokeStyle='rgba(0,0,0,.5)';g.lineWidth=10;g.strokeRect(0,0,WW,WH);
+  for(const b of s.bub){g.strokeStyle='rgba(255,255,255,'+(.5-b.t*.5)+')';g.lineWidth=1.3;g.beginPath();g.arc(b.x,b.y,2+b.t*3,0,7);g.stroke()}
+  for(const p of s.pr){const r=8+Math.sin(s.t*4)*1.2;const pg=g.createRadialGradient(p.x,p.y,2,p.x,p.y,22);pg.addColorStop(0,'rgba(255,240,200,.45)');pg.addColorStop(1,'rgba(255,240,200,0)');g.fillStyle=pg;g.beginPath();g.arc(p.x,p.y,22,0,7);g.fill();g.fillStyle='#fbf3e2';g.beginPath();g.arc(p.x,p.y,r,0,7);g.fill();g.fillStyle='#fff';g.beginPath();g.arc(p.x-3,p.y-3,2.4,0,7);g.fill()}
+  for(const k of s.sh)drawShark(k);
+  if(mode==='duel'){const o=net.o;if(net.role==='turtle'){if(o)drawShark({x:o.x,y:o.y,a:o.a,w:s.t*(o.dd?13:5)});drawTurtle()}else{if(o)drawTurtleAt(o.x,o.y,o.a,s.t,o.dd);drawShark({x:s.x,y:s.y,a:s.a,w:s.t*(s.dd>0?13:5)})}}
+  else if(mode==='shark'){for(const u of s.tu)drawTurtleAt(u.x,u.y,u.a,u.ph,u.b>0);drawShark({x:s.x,y:s.y,a:s.a,w:s.t*(s.dd>0?13:5)})}
+  else if(!(s.grace>0&&Math.floor(s.grace*8)%2))drawTurtle();
+  g.setTransform(dpr,0,0,dpr,0,0);
+  let near=999;for(const k of s.sh)near=Math.min(near,Math.hypot(k.x-s.x,k.y-s.y));
+  const R=Math.hypot(VW,VH)/2;
+  const vg=g.createRadialGradient(VW/2,VH/2,R*.45,VW/2,VH/2,R);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,10,14,.55)');g.fillStyle=vg;g.fillRect(0,0,VW,VH);
+  if(near<140){const a=(1-near/140)*.28;const rg=g.createRadialGradient(VW/2,VH/2,R*.4,VW/2,VH/2,R);rg.addColorStop(0,'rgba(160,20,20,0)');rg.addColorStop(1,'rgba(160,20,20,'+a+')');g.fillStyle=rg;g.fillRect(0,0,VW,VH)}
+  g.fillStyle='#e9efe6';g.font='700 20px Fredoka,sans-serif';g.fillText(mode==='duel'?Math.ceil(Math.max(0,net.left))+'s, '+net.role:mode==='shark'?Math.ceil(s.left)+'s left':Math.floor(s.t)+'s',14,36);g.fillText(mode==='duel'?'You '+net.me+' - '+net.opp+' Friend':(mode==='shark'?'Turtles ':'Pearls ')+s.coins,14,60);
+  if(mode==='duel'&&net.ph==='count'){g.font='700 80px Fredoka,sans-serif';g.textAlign='center';g.fillText(Math.max(1,Math.ceil(net.cd)),VW/2,VH/2);g.font='700 22px Fredoka,sans-serif';g.fillText('You are the '+net.role,VW/2,VH/2+44);g.textAlign='left'}
+  g.fillStyle='rgba(255,255,255,.22)';g.fillRect(VW-112,28,96,8);g.fillStyle=s.dc<=0?'#e9784a':'#e9efe6';g.fillRect(VW-112,28,96*(1-Math.max(0,s.dc)/s.cdm),8);
+}
+function loop(n){const dt=Math.min(.05,(n-last)/1000);last=n;update(dt);if(!s.over){draw();raf=requestAnimationFrame(loop)}}
+reset();rs();draw();
+</script>
+</body>
+</html>
