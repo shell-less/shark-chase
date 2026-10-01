@@ -13,7 +13,7 @@ html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);font-family:'Fredoka',system-ui,sans-serif;overflow:hidden;touch-action:none;user-select:none}
 #wrap{position:relative;width:100%;height:100%}
 canvas{width:100%;height:100%;display:block}
-#ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;background:rgba(3,20,26,.8)}
+#ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:safe center;overflow-y:auto;touch-action:pan-y;text-align:center;padding:24px;box-sizing:border-box;background:rgba(3,20,26,.8)}
 h1{font-size:clamp(2rem,7vw,3.2rem);margin:0 0 8px;font-weight:700}
 p{margin:0 0 18px;max-width:40ch;line-height:1.4;font-weight:500}
 button{font:inherit;font-weight:700;font-size:1.2rem;padding:12px 30px;border:0;border-radius:999px;background:var(--accent);color:#200c03;cursor:pointer}
@@ -24,6 +24,15 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
 [hidden]{display:none!important}
 #dp button{font-size:1rem;padding:10px 18px}
 #dx,#quit{background:transparent;color:var(--ink);border:2px solid var(--ink)}
+#bu{font-size:1rem;padding:10px 18px;background:transparent;color:var(--ink);border:2px solid var(--ink)}
+#ui-info{max-width:min(44ch,calc(100% - 32px));max-height:calc(100% - 32px);overflow-y:auto;box-sizing:border-box;padding:20px 24px;border:2px solid var(--ink);border-radius:20px;background:var(--bg);color:var(--ink);text-align:left;font-size:.95rem;touch-action:pan-y}
+#ui-info::backdrop{background:rgba(0,0,0,.6)}
+#ui-info h2{margin:0 0 8px;font-size:1.4rem}
+#ui-info p{margin:8px 0}
+#ui-info dl{margin:0 0 14px}
+#ui-info dt{font-weight:700;margin-top:8px}
+#ui-info dd{margin:2px 0 0}
+#ui-info form{text-align:center}
 #hs{font-size:.95rem;opacity:.85;margin-top:-8px}
 #pause{position:absolute;right:12px;top:48px;font-size:.9rem;padding:6px 14px}
 input{font:inherit;font-weight:700;font-size:1.1rem;width:6ch;padding:10px 14px;border-radius:999px;border:2px solid var(--ink);background:transparent;color:var(--ink);text-transform:uppercase;text-align:center;user-select:text}
@@ -38,7 +47,7 @@ input{font:inherit;font-weight:700;font-size:1.1rem;width:6ch;padding:10px 14px;
 <div id="shop"></div>
 <button id="dash" disabled>Dash (Q)</button>
 <button id="pause" hidden>Pause (P)</button>
-<div id="ov"><h1 id="t">Shark Chase</h1><p id="m">Choose a side. Turtle: escape the sharks and collect pearls. Shark: hunt the turtles before time runs out. Every turtle you catch adds 5 seconds to the timer. Drag to move, Q to dash, P to pause, keys 1 to 4 (or the bottom buttons) to buy upgrades.</p><p id="hs" hidden></p><p id="tip" hidden></p><div class="row" id="solo"><button id="b">Play as turtle</button><button id="bs">Play as shark</button><button id="bd">Duel a friend</button></div><div class="row" id="pz" hidden><button id="resume">Resume</button><button id="quit">Quit to menu</button></div><div id="dp" hidden><p id="ds"></p><p id="dn" hidden></p><div class="row" id="d1"><button id="dct">Create room as turtle</button><button id="dcs">Create room as shark</button></div><div class="row" id="d2"><input id="ci" maxlength="4" placeholder="Code" aria-label="Room code" autocomplete="off"><button id="dj">Join room</button></div><div class="row"><button id="dr" hidden>I'm ready</button><button id="dx">Back</button></div></div></div>
+<div id="ov"><h1 id="t">Shark Chase</h1><p id="m">Choose a side. Turtle: escape the sharks and collect pearls. Shark: hunt the turtles before time runs out. Every turtle you catch adds 5 seconds to the timer. Drag to move, Q to dash, P to pause, keys 1 to 4 (or the bottom buttons) to buy upgrades.</p><p id="hs" hidden></p><p id="tip" hidden></p><div class="row" id="solo"><button id="b">Play as turtle</button><button id="bs">Play as shark</button><button id="bd">Duel a friend</button><button id="bu">What do upgrades do?</button></div><dialog id="ui-info" aria-labelledby="ui-title"><h2 id="ui-title">Upgrades</h2><p>Earn pearls (or turtle catches as the shark) and spend them on upgrades with keys 1 to 4 or the bottom buttons.</p><dl><dt>Turtle</dt><dd><b>Flippers:</b> swim 10% faster per level.</dd><dd><b>Dash:</b> each level makes your dash 10% longer.</dd><dd><b>Magnet:</b> picks up pearls from further away.</dd><dd><b>Shield:</b> survives a shark bite, then you get a moment of safety.</dd><dt>Shark</dt><dd><b>Fins:</b> swim 10% faster per level.</dd><dd><b>Lunge:</b> longer lunge that recharges sooner.</dd><dd><b>Jaws:</b> a bigger bite, so turtles are easier to catch.</dd><dd><b>Stamina:</b> adds 8 seconds to the clock.</dd></dl><form method="dialog"><button id="ui-close">Got it</button></form></dialog><div class="row" id="pz" hidden><button id="resume">Resume</button><button id="quit">Quit to menu</button></div><div id="dp" hidden><p id="ds"></p><p id="dn" hidden></p><div class="row" id="d1"><button id="dct">Create room as turtle</button><button id="dcs">Create room as shark</button></div><div class="row" id="d2"><input id="ci" maxlength="4" placeholder="Code" aria-label="Room code" autocomplete="off"><button id="dj">Join room</button></div><div class="row"><button id="dr" hidden>I'm ready</button><button id="dx">Back</button></div></div></div>
 </div>
 <script type="module" src="/src/main.ts"></script>
 </body>

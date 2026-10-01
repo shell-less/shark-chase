@@ -17,6 +17,8 @@ export const ui = {
   playTurtle: el<HTMLButtonElement>('b'),
   playShark: el<HTMLButtonElement>('bs'),
   duel: el<HTMLButtonElement>('bd'),
+  upgradesHelp: el<HTMLButtonElement>('bu'),
+  upgradesInfo: el<HTMLDialogElement>('ui-info'),
   pauseRow: el('pz'),
   resume: el<HTMLButtonElement>('resume'),
   quit: el<HTMLButtonElement>('quit'),
@@ -38,6 +40,7 @@ export const MENU_TEXT = ui.message.textContent ?? ''
 /** Shows the overlay. The how-to-play tip only appears when a caller turns it on afterwards. */
 export function showOverlay() {
   ui.tip.hidden = true
+  ui.upgradesInfo.close()
   ui.overlay.style.display = 'flex'
 }
 export function hideOverlay() {

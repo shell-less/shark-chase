@@ -143,6 +143,11 @@ function loop(n: number) {
 
 ui.playTurtle.onclick = () => start('turtle')
 ui.playShark.onclick = () => start('shark')
+ui.upgradesHelp.onclick = () => ui.upgradesInfo.showModal()
+// Clicking the dimmed backdrop closes the popup.
+ui.upgradesInfo.onclick = e => {
+  if (e.target === ui.upgradesInfo) ui.upgradesInfo.close()
+}
 ui.dash.addEventListener('pointerdown', e => {
   e.stopPropagation()
   dash()
