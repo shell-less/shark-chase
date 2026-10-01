@@ -40,12 +40,18 @@ The two halves are npm workspaces with one root `package.json`.
 - [x] Commit the original HTML as-is so there's a baseline to compare against
 
 ### 1. Faithful port (no behavior changes)
-- Split the minified script into the modules above with readable names. Keep every constant, speed, cost and timing identical.
-- Leave the `window.claude` room path working for now, so duels can still be tested before the server exists.
-- Done when every mode plays the same as the original side by side.
-- Pull the pure sim functions out so they can take a seeded RNG.
-- Add Vitest for the sim logic: collisions, upgrade costs, role swapping (`roleFor`).
-- Update `CLAUDE.md`, because the hand-minified style rule no longer applies.
+- [x] Split the minified script into the modules above with readable names. Keep every constant, speed, cost and timing identical.
+- [x] Leave the `window.claude` room path working for now (`net/claudeRoom.ts`), so duels can still be tested before the server exists.
+- [ ] Done when every mode plays the same as the original side by side. Solo modes and the duel menu are smoke-tested in headless Chrome; a duel needs a manual test on claude.ai.
+- [x] Pull the pure sim functions out so they can take a seeded RNG.
+- [x] Add Vitest for the sim logic: collisions, upgrade costs, role swapping (`roleFor`).
+- [x] Update `CLAUDE.md`, because the hand-minified style rule no longer applies.
+
+Deviations from the target structure: the duel flow and its UI live in `src/duel.ts`, with only the pure parts in `sim/duel.ts`. Shared movement is in `sim/player.ts`, DOM lookups are in `ui.ts`, and `cfRoom.ts` waits for phase 3.
+
+Found during the port:
+- **Pearls never respawned** in the prototype. Its respawn pushed onto the array it was filtering, so each new pearl was discarded and a turtle game had only 4 pearls. Fixed in the port: every collected pearl is replaced. This is the one intended gameplay difference from the prototype.
+- **Keys 1–4 in a duel** threw a TypeError in the prototype, because the duel upgrade table is empty. The port ignores them instead.
 
 ### 2. GitHub Pages
 - Set `base: '/shark-chase/'` in the Vite config.
