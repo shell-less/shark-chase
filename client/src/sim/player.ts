@@ -2,12 +2,16 @@ import { DASH_SPEED, PLAYER_MARGIN, PLAYER_SPEED, SPEED_PER_LEVEL, type GameStat
 import { clamp } from './math'
 import type { Rng } from './rng'
 
-/** Dash duration and cooldown for a dash upgrade level. Turtles dash shorter but recover slower. */
+export const DASH_TIME = 0.28
+/** Each turtle Dash level makes the dash 10% longer (so 10% further). The cooldown never changes. */
+export const TURTLE_DASH_PER_LEVEL = 0.028
+export const TURTLE_DASH_COOLDOWN = 3.2
+
+/** Dash duration and cooldown for an upgrade level. The shark's Lunge still also shortens its cooldown. */
 export function dashStats(turtle: boolean, level: number) {
-  return {
-    duration: 0.28 + (turtle ? 0.015 : 0.03) * level,
-    cooldown: (turtle ? 3.2 : 2.2) - (turtle ? 0.12 : 0.25) * level,
-  }
+  return turtle
+    ? { duration: DASH_TIME + TURTLE_DASH_PER_LEVEL * level, cooldown: TURTLE_DASH_COOLDOWN }
+    : { duration: DASH_TIME + 0.03 * level, cooldown: 2.2 - 0.25 * level }
 }
 
 /** Starts a dash if it's off cooldown. Returns whether it started. */

@@ -102,8 +102,11 @@ describe('player', () => {
   it('dash stats per side and level', () => {
     expect(dashStats(true, 0)).toEqual({ duration: 0.28, cooldown: 3.2 })
     expect(dashStats(false, 0)).toEqual({ duration: 0.28, cooldown: 2.2 })
-    expect(dashStats(true, 5).duration).toBeCloseTo(0.355)
-    expect(dashStats(true, 5).cooldown).toBeCloseTo(2.6)
+    // Turtle Dash: 10% further per level, up to +50% at level 5, and the cooldown stays put.
+    for (let l = 0; l <= 5; l++) {
+      expect(dashStats(true, l).duration).toBeCloseTo(0.28 * (1 + 0.1 * l))
+      expect(dashStats(true, l).cooldown).toBe(3.2)
+    }
     expect(dashStats(false, 5).duration).toBeCloseTo(0.43)
     expect(dashStats(false, 5).cooldown).toBeCloseTo(0.95)
   })
