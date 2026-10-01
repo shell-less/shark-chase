@@ -1,0 +1,13 @@
+{
+  "name": "shark-chase",
+  "private": true,
+  "workspaces": [
+    "client"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w client",
+    "build": "npm run build -w client",
+    "test": "npm test -w client",
+    "typecheck": "npm run typecheck -w client"
+  }
+}

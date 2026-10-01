@@ -4,40 +4,46 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Shark Chase: Turtle Escape is a browser game in one file, `Shark Chase_ Turtle Escape.html`. Its HTML, CSS and JS are all inline, and the canvas is drawn by hand. There's no build step, package manager, linter or test suite. To run it, open the file in a browser. The only external resource is the Fredoka font from Google Fonts.
+Shark Chase: Turtle Escape is a canvas browser game. The game lives in `client/` as a Vite + TypeScript app. The repo root is an npm workspace, and `docs/PLAN.md` is the upgrade plan, organized in phases.
 
-The page was written to run as a claude.ai Artifact. Duel mode needs the Artifact runtime's `window.claude.use('room')` capability. Opened as a local file, solo modes work and Duel shows a "not available here" message.
+`Shark Chase_ Turtle Escape.html` is the original single-file prototype. It's kept as the behavioral reference, so leave it alone: the port should play exactly like it.
 
-## Code style
+## Commands
 
-The JS is deliberately minified by hand: short identifiers, dense one-line statements, no comments. Match this style when editing. Don't reformat the file or split it into modules unless asked.
+From the repo root:
+- `npm install`
+- `npm run dev`: Vite dev server
+- `npm test`: Vitest (sim logic only, runs in node)
+- `npm run build`: typecheck, then build to `client/dist`
+- `npm run typecheck`
 
-Key short names:
-- `s`: current game state (player pos/angle `x,y,a`, time `t`, dash cooldown `dc` / duration `dd` / max cooldown `cdm`, `coins`, `got`, sharks `sh`, pearls `pr`, AI turtles `tu`, upgrade levels `up`, `grace`, `over`)
-- `g`: the 2D canvas context; `cv` is the canvas
-- `WW/WH`: world size (1800×1300 solo, 1000×760 duel); `VW/VH`: viewport; `Z`: zoom; `CX/CY`: camera offset; `dpr`: device pixel ratio
-- `UP`: the active upgrade table. `UPT` is the turtle table, `UPS` the shark table, and duel has none. Each entry is `{n:name, k:key into s.up, max, c:level=>cost}`
-- `net`: duel/network state, reset from `NET0`
+To pass Vite flags like `--port`, run `npx vite ...` inside `client/`. The root script doesn't forward them.
 
 ## Architecture
 
-The global `mode` is one of `'turtle'`, `'shark'` or `'duel'`. Everything branches on it.
+`mode` (`'turtle' | 'shark' | 'duel'`) in `main.ts` decides everything else.
 
-- **Lifecycle:** `start(m)` → `reset()` builds `s` for the mode → `loop` (rAF) calls `update(dt)` then `draw()`. `dt` is capped at 0.05. `over()` ends solo games and saves the best score in localStorage (`chase-best` / `shark-best`, wrapped in try/catch). `finish()` ends duel rounds.
-- **`update(dt)`:** handles shared player movement (keyboard WASD/arrows, or pointer drag via `tp` in screen coords turned into world coords through `Z`/`CX`/`CY`), dash and bubbles. It then hands off to:
-  - turtle mode, inline in `update`: shark AI (steering, lunges, spawned every 14s up to 5 sharks), pearl pickup with the magnet radius, shield hits
-  - `updS`: shark mode. Fleeing turtle AI with wall avoidance and bursts, plus the countdown timer (`s.left`); each catch adds time
-  - `updD`: duel play. Interpolates the opponent, sends our position over presence, detects the catch or the timeout
-  - `updC`: duel countdown before play
-- **Rendering:** `draw()` paints the world in world coords (`setTransform` with `Z` and the camera), then the HUD in screen coords. `drawTurtle()` draws at `s.x/s.y`, and `drawTurtleAt` temporarily swaps `s` fields to draw turtles elsewhere. `drawShark(k)` draws a procedural body along a wavy spine (`spine`, `hw`, `bodyPath`), animated by `k.w`.
-- **Shop:** `refresh()` rebuilds the `#shop` buttons from `UP`. Call it whenever `coins` or `up` changes. `buy(i)` is bound to keys 1–4.
-- **Duel networking:** there's no server code. It all goes through the room's presence:
-  - `joinDuel` joins room `duel-<code>`, and `onP` reacts to peer presence changes
-  - Presence fields: `base` (the creator's side), `rd` (ready for round N), `x/y/a/dd` (position), `res:{r,w}` (round result)
-  - Roles alternate each round through `roleFor()`
-  - Each client reports a result through `finish()`, and `net.done` makes sure a round is only counted once
-- **Overlay UI:** `#ov` holds the menu and end screens, and its text is swapped in place (`tt`, `mm`, `ds`). `showDuel(state)` toggles the duel panel rows.
+- **`src/state.ts`:** types, tuning constants, upgrade tables (`TURTLE_UPGRADES`, `SHARK_UPGRADES`, none for duel), `createState(mode, rng, role)`, and the spawn helpers.
+- **`src/sim/`:** pure game logic with no DOM access. Every function that needs randomness takes an `Rng`. The game passes `Math.random`, and tests pass `mulberry32(seed)`.
+  - `player.ts`: movement, dash, bubbles (shared by all modes)
+  - `turtle.ts`: solo turtle mode (shark AI, lunges, shields, pearls)
+  - `shark.ts`: solo shark mode (fleeing turtles, countdown)
+  - `duel.ts`: `roleFor`, opponent smoothing, `duelWinner`
+  - Step functions return flags (`caught`, `timeUp`, `shopChanged`). `main.ts` reacts to them, so the sim never touches the UI.
+- **`src/main.ts`:** lifecycle. `start(m)` → `reset()` → `loop` (rAF, `dt` capped at 0.05) → `update(dt)` then `draw()`. `over()` ends solo games and keeps best scores in localStorage (`chase-best` / `shark-best`). `halt()` stops the loop on the final frame.
+- **`src/render.ts`:** `draw(g, scene)` paints the world in world coords, then the HUD in screen coords. `view` holds the viewport, zoom, dpr and camera. Canvas colors are hardcoded here.
+- **`src/input.ts`:** keyboard and pointer. `moveIntent(s, view)` turns them into a unit direction. Keys override the pointer.
+- **`src/shop.ts`:** `tryBuy` (pure) and `renderShop`. Re-render whenever coins or upgrade levels change.
+- **`src/duel.ts`:** duel round flow and its UI (`net` state, `onPeers`, `beginRound`, `finish`). Roles alternate each round. Each client reports the result it sees, and `net.done` makes sure a round is only counted once.
+- **`src/net/room.ts`:** the `Room` interface (shared presence). `claudeRoom.ts` implements it on the claude.ai Artifact runtime (`window.claude.use('room')`). Phase 3 of the plan replaces it with a Cloudflare client behind the same interface. Presence field names (`base`, `rd`, `res`, `x/y/a/dd`) are the wire format.
+- **`src/ui.ts`:** DOM element lookups and overlay helpers. The markup and CSS live in `client/index.html`.
+
+## Conventions
+
+- Readable names and normal formatting. The prototype was hand-minified; the port isn't. The dense one-line canvas calls in `render.ts` are the one exception, since splitting them hurts readability more than it helps.
+- Keep gameplay numbers the same as the prototype unless a change is asked for. Tunables live as named constants in `state.ts` and the `sim/` files.
+- New sim logic stays pure and gets a test in `client/test/`.
 
 ## Theming
 
-Colors are CSS tokens on `:root`, with dark-mode overrides keyed on `prefers-color-scheme` and `data-theme`. Most canvas colors are hardcoded in the drawing functions.
+Colors are CSS tokens on `:root` in `index.html`, with dark-mode overrides keyed on `prefers-color-scheme` and `data-theme`.
