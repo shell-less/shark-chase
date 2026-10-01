@@ -17,6 +17,8 @@ From the repo root:
 - `npm run build`: typecheck, then build to `client/dist`
 - `npm run typecheck`
 
+Pushing to `main` deploys `client/` to GitHub Pages (`.github/workflows/pages.yml`), served under `/shark-chase/` (Vite `base`).
+
 To pass Vite flags like `--port`, run `npx vite ...` inside `client/`. The root script doesn't forward them.
 
 ## Architecture
@@ -35,7 +37,7 @@ To pass Vite flags like `--port`, run `npx vite ...` inside `client/`. The root 
 - **`src/input.ts`:** keyboard and pointer. `moveIntent(s, view)` turns them into a unit direction. Keys override the pointer.
 - **`src/shop.ts`:** `tryBuy` (pure) and `renderShop`. Re-render whenever coins or upgrade levels change.
 - **`src/duel.ts`:** duel round flow and its UI (`net` state, `onPeers`, `beginRound`, `finish`). Roles alternate each round. Each client reports the result it sees, and `net.done` makes sure a round is only counted once.
-- **`src/net/room.ts`:** the `Room` interface (shared presence). `claudeRoom.ts` implements it on the claude.ai Artifact runtime (`window.claude.use('room')`). Phase 3 of the plan replaces it with a Cloudflare client behind the same interface. Presence field names (`base`, `rd`, `res`, `x/y/a/dd`) are the wire format.
+- **`src/net/room.ts`:** the `Room` interface (shared presence). `claudeRoom.ts` implements it on the claude.ai Artifact runtime (`window.claude.use('room')`), and the Duel button is hidden wherever that runtime is missing (including Pages). Phase 3 of the plan replaces it with a Cloudflare client behind the same interface. Presence field names (`base`, `rd`, `res`, `x/y/a/dd`) are the wire format.
 - **`src/ui.ts`:** DOM element lookups and overlay helpers. The markup and CSS live in `client/index.html`.
 
 ## Conventions

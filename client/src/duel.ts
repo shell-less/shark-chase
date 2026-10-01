@@ -1,6 +1,6 @@
 import { DUEL_COUNTDOWN, DUEL_TIME, duelSpawn, type GameState, type Mode, type Role } from './state'
 import { createOpponent, duelWinner, flip, roleFor, stepOpponent, type Opponent } from './sim/duel'
-import { joinClaudeRoom } from './net/claudeRoom'
+import { claudeRoomsAvailable, joinClaudeRoom } from './net/claudeRoom'
 import type { Presence, Room } from './net/room'
 import type { DuelScene } from './render'
 import { MENU_TEXT, showOverlay, ui } from './ui'
@@ -196,6 +196,8 @@ export const duelScene = (): DuelScene => ({
 
 export function initDuel(h: DuelHooks) {
   hooks = h
+  // Hidden where duels can't connect (e.g. GitHub Pages) until the Cloudflare rooms land.
+  ui.duel.hidden = !claudeRoomsAvailable()
   ui.duel.onclick = openDuelMenu
   ui.createTurtle.onclick = () => joinDuel(makeCode(), 'turtle')
   ui.createShark.onclick = () => joinDuel(makeCode(), 'shark')

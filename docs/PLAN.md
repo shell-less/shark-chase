@@ -54,9 +54,10 @@ Found during the port:
 - **Keys 1–4 in a duel** threw a TypeError in the prototype, because the duel upgrade table is empty. The port ignores them instead.
 
 ### 2. GitHub Pages
-- Set `base: '/shark-chase/'` in the Vite config.
-- The workflow builds `client/` and publishes it with `actions/upload-pages-artifact` + `actions/deploy-pages` on every push to `main`.
-- Solo modes go live here. Duel stays hidden until phase 3.
+- [x] Set `base: '/shark-chase/'` in the Vite config.
+- [x] The workflow (`.github/workflows/pages.yml`) tests, builds `client/` and publishes it with `actions/upload-pages-artifact` + `actions/deploy-pages` on every push to `main`.
+- [x] Solo modes go live here. Duel stays hidden until phase 3: the button only shows when `window.claude` exists (`claudeRoomsAvailable`).
+- [ ] One-time repo setting: Settings → Pages → Source: **GitHub Actions**. Then push and check the first deploy.
 
 ### 3. Durable Objects multiplayer
 - **Worker:**

@@ -16,6 +16,9 @@ declare global {
   }
 }
 
+/** Rooms only exist inside the claude.ai Artifact runtime. */
+export const claudeRoomsAvailable = () => !!window.claude
+
 /** Joins through the claude.ai Artifact runtime. Resolves null when opened anywhere else. */
 export const joinClaudeRoom: JoinRoom = async name => {
   const R = window.claude ? await window.claude.use('room') : null
