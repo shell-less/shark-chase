@@ -26,6 +26,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+        env:
+          # The room Worker's URL. Duels stay hidden until this repo variable is set.
+          VITE_ROOM_URL: ${{ vars.ROOM_URL }}
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

@@ -1,6 +1,6 @@
 import { DUEL_COUNTDOWN, DUEL_TIME, duelSpawn, type GameState, type Mode, type Role } from './state'
 import { createOpponent, duelWinner, flip, roleFor, stepOpponent, type Opponent } from './sim/duel'
-import { claudeRoomsAvailable, joinClaudeRoom } from './net/claudeRoom'
+import { joinRoom, roomsAvailable, RoomJoinError, type JoinFailure } from './net/cfRoom'
 import type { Presence, Room } from './net/room'
 import type { DuelScene } from './render'
 import { MENU_TEXT, showOverlay, ui } from './ui'
@@ -63,13 +63,14 @@ function showDuel(st: PanelState) {
 
 function openDuelMenu() {
   ui.title.textContent = 'Duel a friend'
-  ui.message.innerHTML = '<b>How duels work</b><br>1. One player creates a room as turtle or shark and sends the 4-letter code.<br>2. The other player opens this page, presses Duel a friend, types the code and joins. They get the other side.<br>3. Both press I\'m ready. After a 3-second countdown the round starts.<br>The shark wins by catching the turtle. The turtle wins by surviving 50 seconds. Sides swap every round.<br>Drag or use arrow keys to move, Q to dash. Your friend must open this page signed in to claude.ai.'
+  ui.message.innerHTML = '<b>How duels work</b><br>1. One player creates a room as turtle or shark and sends the 4-letter code.<br>2. The other player opens this page, presses Duel a friend, types the code and joins. They get the other side.<br>3. Both press I\'m ready. After a 3-second countdown the round starts.<br>The shark wins by catching the turtle. The turtle wins by surviving 50 seconds. Sides swap every round.<br>Drag or use arrow keys to move, Q to dash.'
   ui.duelStatus.textContent = ''
   showDuel('menu')
 }
 
 /** Returns to the main menu. */
 function leaveDuel() {
+  attempt++
   net.room?.leave()
   resetNet()
   ui.duelPanel.hidden = true
@@ -80,21 +81,42 @@ function leaveDuel() {
 
 const makeCode = () => Array.from({ length: 4 }, () => 'ABCDEFGHJKMNPQRSTUVWXYZ'[Math.floor(Math.random() * 23)]).join('')
 
-async function joinDuel(code: string, base: Role | null) {
+const JOIN_ERRORS: Record<JoinFailure, (code: string) => string> = {
+  missing: code => 'There is no room ' + code + '. Check the code with your friend.',
+  full: code => 'Room ' + code + ' already has two players.',
+  taken: () => 'Could not find a free room code. Try again.',
+  unavailable: () => 'Could not reach the duel server. Try again in a moment.',
+}
+
+/** Bumped on every connect and on leaving, so a stale connect can tell it was abandoned. */
+let attempt = 0
+const CREATE_TRIES = 5
+
+/** Creates a room with a fresh code when `base` is set, otherwise joins room `code`. */
+async function joinDuel(code: string | null, base: Role | null) {
+  if (net.room) return
+  const mine = ++attempt
   ui.duelStatus.textContent = 'Connecting...'
-  let room: Room | null = null
-  try {
-    room = await joinClaudeRoom('duel-' + code.toLowerCase())
-  } catch {}
-  if (!room) {
-    ui.duelStatus.textContent = 'Duels are not available here. You and your friend both need to open this page signed in to claude.ai.'
-    return
+  let room: Room | null = null, c = ''
+  for (let i = 0; !room && i < (base ? CREATE_TRIES : 1); i++) {
+    c = code ?? makeCode()
+    try {
+      room = await joinRoom(c, !!base)
+    } catch (e) {
+      const reason = e instanceof RoomJoinError ? e.reason : 'unavailable'
+      if (mine !== attempt) return
+      if (reason === 'taken' && i < CREATE_TRIES - 1) continue
+      ui.duelStatus.textContent = JOIN_ERRORS[reason](c)
+      return
+    }
   }
-  resetNet({ room, code, base, host: !!base, phase: 'wait' })
+  if (!room) return
+  if (mine !== attempt) return room.leave()
+  resetNet({ room, code: c, base, host: !!base, phase: 'wait' })
   room.presence({ base: base || null })
-  room.onPeers(onPeers)
   showDuel('wait')
-  ui.duelStatus.textContent = base ? 'Room ' + code + '. Send this code to your friend and keep this page open.' : 'Looking for room ' + code + '. Check the code if nothing happens.'
+  ui.duelStatus.textContent = base ? 'Room ' + c + '. Send this code to your friend and keep this page open.' : 'Joined room ' + c + '.'
+  room.onPeers(onPeers)
 }
 
 function onPeers() {
@@ -196,11 +218,11 @@ export const duelScene = (): DuelScene => ({
 
 export function initDuel(h: DuelHooks) {
   hooks = h
-  // Hidden where duels can't connect (e.g. GitHub Pages) until the Cloudflare rooms land.
-  ui.duel.hidden = !claudeRoomsAvailable()
+  // Hidden when the build has no room server configured.
+  ui.duel.hidden = !roomsAvailable()
   ui.duel.onclick = openDuelMenu
-  ui.createTurtle.onclick = () => joinDuel(makeCode(), 'turtle')
-  ui.createShark.onclick = () => joinDuel(makeCode(), 'shark')
+  ui.createTurtle.onclick = () => joinDuel(null, 'turtle')
+  ui.createShark.onclick = () => joinDuel(null, 'shark')
   ui.join.onclick = () => {
     const c = ui.codeInput.value.trim().toUpperCase()
     if (!/^[A-Z]{4}$/.test(c)) {

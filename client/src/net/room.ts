@@ -31,6 +31,3 @@ export interface Room {
   peers(): Peer[]
   leave(): void
 }
-
-/** Joins a room by name, or resolves null when rooms aren't available. */
-export type JoinRoom = (name: string) => Promise<Room | null>

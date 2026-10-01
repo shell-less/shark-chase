@@ -57,29 +57,31 @@ Found during the port:
 - [x] Set `base: '/shark-chase/'` in the Vite config.
 - [x] The workflow (`.github/workflows/pages.yml`) tests, builds `client/` and publishes it with `actions/upload-pages-artifact` + `actions/deploy-pages` on every push to `main`.
 - [x] Solo modes go live here. Duel stays hidden until phase 3: the button only shows when `window.claude` exists (`claudeRoomsAvailable`).
-- [ ] One-time repo setting: Settings → Pages → Source: **GitHub Actions**. Then push and check the first deploy.
+- [x] One-time repo setting: Settings → Pages → Source: **GitHub Actions**. Live at https://shell-less.github.io/shark-chase/
 
 ### 3. Durable Objects multiplayer
-- **Worker:**
+- [x] **Worker** (`server/src/index.ts`):
   - `GET /room/:code` upgrades to a WebSocket and forwards to `env.DUEL_ROOM.idFromName(code)`.
-  - Checks `Origin` against the Pages domain and `localhost`.
-- **DuelRoom DO:**
+  - Checks `Origin` against the Pages domain (`ALLOWED_ORIGIN` in `wrangler.jsonc`) and `localhost`.
+- [x] **DuelRoom DO** (`server/src/room.ts`):
   - Uses the WebSocket Hibernation API (`ctx.acceptWebSocket`, `webSocketMessage`, `webSocketClose`).
   - Keeps each connection's presence with `serializeAttachment`. It needs no storage.
   - Allows at most 2 players and rejects a third with "room full".
-  - On each presence patch, it merges the patch and broadcasts `{peers:[{id, presence}]}`, matching what `onPeers` expects today.
+  - On each presence patch, it merges the patch and broadcasts `{peers:[{id, presence}]}` to the other player. Joins and leaves go to everyone. Each socket first gets `{you:id}`.
   - Configured with `new_sqlite_classes` in the migrations (works on the Workers Free plan).
-- **Client `cfRoom.ts`:**
+  - Already drops non-JSON and non-object patches. Size and rate caps are still phase 4.
+- [x] **Client `cfRoom.ts`:**
   - Implements the same `Room` interface over the WebSocket.
-  - Sends position updates at about 20 Hz instead of every frame. The existing interpolation (`k = dt*14`) already smooths them.
-- **Create vs. join:**
-  - Creating a room fails if the code is already in use.
+  - Sends position updates at about 20 Hz instead of every frame. Anything else (ready, results) goes out at once.
+- [x] **Create vs. join:** refusals arrive as WebSocket close codes: 4009 code taken, 4004 no such room, 4003 room full.
+  - Creating a room fails if the code is already in use. The client retries with a new code, up to 5 times.
   - Joining fails if the room doesn't exist.
-- **Config:**
-  - The server URL comes from `VITE_ROOM_URL` at build time.
-  - The worker deploys with `cloudflare/wrangler-action` using a `CLOUDFLARE_API_TOKEN` repo secret.
-  - Local development runs `wrangler dev` and `vite` together.
-- Remove the claude.ai-specific code path and the "signed in to claude.ai" wording.
+- [x] **Config:**
+  - The server URL comes from `VITE_ROOM_URL` at build time. On Pages it's the `ROOM_URL` repo variable, and Duel stays hidden while that's unset. Locally it's `client/.env.development`.
+  - The worker deploys with `cloudflare/wrangler-action` (`.github/workflows/worker.yml`) using the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repo secrets, on pushes that touch `server/`.
+  - `npm run dev` runs `wrangler dev` and `vite` together.
+- [x] Remove the claude.ai-specific code path and the "signed in to claude.ai" wording.
+- [ ] First deploy: push, take the Worker URL from the deploy log, set it as the `ROOM_URL` repo variable, then re-run the Pages workflow. Play one duel on the live site.
 
 ### 4. Hardening
 - **Opponent leaves mid-round:** today the game waits forever. Show a message and return to the menu.
