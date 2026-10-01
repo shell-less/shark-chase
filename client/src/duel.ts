@@ -3,7 +3,7 @@ import { createOpponent, duelWinner, flip, roleFor, stepOpponent, type Opponent 
 import { joinRoom, roomsAvailable, RoomJoinError, type JoinFailure } from './net/cfRoom'
 import type { Presence, Room } from './net/room'
 import type { DuelScene } from './render'
-import { MENU_TEXT, showOverlay, ui } from './ui'
+import { showMainMenu, showOverlay, ui } from './ui'
 
 type Phase = 'menu' | 'wait' | 'ready' | 'count' | 'play' | 'end'
 
@@ -66,6 +66,7 @@ function showDuel(st: PanelState) {
 }
 
 function openDuelMenu() {
+  ui.best.hidden = true
   ui.title.textContent = 'Duel a friend'
   ui.message.innerHTML = '<b>How duels work</b><br>1. One player creates a room as turtle or shark and sends the 4-letter code.<br>2. The other player opens this page, presses Duel a friend, types the code and joins. They get the other side.<br>3. Both press I\'m ready. After a 3-second countdown the round starts.<br>The shark wins by catching the turtle. The turtle wins by surviving 50 seconds. Sides swap every round.<br>Drag or use arrow keys to move, Q to dash.'
   ui.duelStatus.textContent = ''
@@ -81,8 +82,7 @@ function leaveDuel() {
   resetNet()
   ui.duelPanel.hidden = true
   ui.soloRow.hidden = false
-  ui.title.textContent = 'Shark Chase'
-  ui.message.textContent = MENU_TEXT
+  showMainMenu()
 }
 
 const makeCode = () => Array.from({ length: 4 }, () => 'ABCDEFGHJKMNPQRSTUVWXYZ'[Math.floor(Math.random() * 23)]).join('')
@@ -171,6 +171,7 @@ function endDuel(reason: 'left' | 'lost') {
   hooks.leave()
   ui.title.textContent = reason === 'left' ? 'Your friend left' : 'Connection lost'
   ui.message.textContent = why + score
+  ui.best.hidden = true
   showOverlay()
 }
 

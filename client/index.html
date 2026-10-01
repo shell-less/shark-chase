@@ -23,7 +23,9 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
 .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
 [hidden]{display:none!important}
 #dp button{font-size:1rem;padding:10px 18px}
-#dx{background:transparent;color:var(--ink);border:2px solid var(--ink)}
+#dx,#quit{background:transparent;color:var(--ink);border:2px solid var(--ink)}
+#hs{font-size:.95rem;opacity:.85;margin-top:-8px}
+#pause{position:absolute;right:12px;top:48px;font-size:.9rem;padding:6px 14px}
 input{font:inherit;font-weight:700;font-size:1.1rem;width:6ch;padding:10px 14px;border-radius:999px;border:2px solid var(--ink);background:transparent;color:var(--ink);text-transform:uppercase;text-align:center;user-select:text}
 #shop{position:absolute;left:10px;bottom:10px;display:flex;gap:6px;flex-wrap:wrap;max-width:calc(100% - 110px)}
 #shop button{font-size:.8rem;line-height:1.25;padding:6px 10px;border-radius:12px;background:#d9e8df;color:#0a2a30;text-align:left}
@@ -35,7 +37,8 @@ input{font:inherit;font-weight:700;font-size:1.1rem;width:6ch;padding:10px 14px;
 <canvas id="c" aria-label="Turtle chase game"></canvas>
 <div id="shop"></div>
 <button id="dash" disabled>Dash (Q)</button>
-<div id="ov"><h1 id="t">Shark Chase</h1><p id="m">Choose a side. Turtle: escape the sharks and collect pearls. Shark: hunt the turtles before time runs out. Every turtle you catch adds 5 seconds to the timer. Drag to move, Q to dash, keys 1 to 4 (or the bottom buttons) to buy upgrades.</p><div class="row" id="solo"><button id="b">Play as turtle</button><button id="bs">Play as shark</button><button id="bd">Duel a friend</button></div><div id="dp" hidden><p id="ds"></p><p id="dn" hidden></p><div class="row" id="d1"><button id="dct">Create room as turtle</button><button id="dcs">Create room as shark</button></div><div class="row" id="d2"><input id="ci" maxlength="4" placeholder="Code" aria-label="Room code" autocomplete="off"><button id="dj">Join room</button></div><div class="row"><button id="dr" hidden>I'm ready</button><button id="dx">Back</button></div></div></div>
+<button id="pause" hidden>Pause (P)</button>
+<div id="ov"><h1 id="t">Shark Chase</h1><p id="m">Choose a side. Turtle: escape the sharks and collect pearls. Shark: hunt the turtles before time runs out. Every turtle you catch adds 5 seconds to the timer. Drag to move, Q to dash, P to pause, keys 1 to 4 (or the bottom buttons) to buy upgrades.</p><p id="hs" hidden></p><div class="row" id="solo"><button id="b">Play as turtle</button><button id="bs">Play as shark</button><button id="bd">Duel a friend</button></div><div class="row" id="pz" hidden><button id="resume">Resume</button><button id="quit">Quit to menu</button></div><div id="dp" hidden><p id="ds"></p><p id="dn" hidden></p><div class="row" id="d1"><button id="dct">Create room as turtle</button><button id="dcs">Create room as shark</button></div><div class="row" id="d2"><input id="ci" maxlength="4" placeholder="Code" aria-label="Room code" autocomplete="off"><button id="dj">Join room</button></div><div class="row"><button id="dr" hidden>I'm ready</button><button id="dx">Back</button></div></div></div>
 </div>
 <script type="module" src="/src/main.ts"></script>
 </body>

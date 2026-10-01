@@ -7,10 +7,16 @@ let pointer: { x: number; y: number } | null = null
 
 export const clearPointer = () => (pointer = null)
 
+/** Forgets held keys, e.g. when the tab loses focus and their keyup never arrives. */
+export function clearKeys() {
+  for (const k in keys) keys[k] = false
+}
+
 export interface InputHandlers {
   dash: () => void
   buy: (i: number) => void
   enter: () => void
+  pause: () => void
 }
 
 export function bindInput(canvas: HTMLCanvasElement, h: InputHandlers) {
@@ -21,6 +27,7 @@ export function bindInput(canvas: HTMLCanvasElement, h: InputHandlers) {
     if (k === 'q' || k === ' ') h.dash()
     if (k.length === 1 && '1234'.includes(k)) h.buy(+k - 1)
     if (k === 'enter') h.enter()
+    if (k === 'p' || k === 'escape') h.pause()
   })
   addEventListener('keyup', e => (keys[e.key.toLowerCase()] = false))
   const track = (e: PointerEvent) => {

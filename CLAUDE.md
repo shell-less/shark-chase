@@ -35,7 +35,7 @@ To pass Vite flags like `--port`, run `npx vite ...` inside `client/`. The root 
   - `shark.ts`: solo shark mode (fleeing turtles, countdown)
   - `duel.ts`: `roleFor`, opponent smoothing, `duelWinner`
   - Step functions return flags (`caught`, `timeUp`, `shopChanged`). `main.ts` reacts to them, so the sim never touches the UI.
-- **`src/main.ts`:** lifecycle. `start(m)` → `reset()` → `loop` (rAF, `dt` capped at 0.05) → `update(dt)` then `draw()`. `over()` ends solo games and keeps best scores in localStorage (`chase-best` / `shark-best`). `halt()` stops the loop on the final frame.
+- **`src/main.ts`:** lifecycle. `start(m)` → `reset()` → `loop` (rAF, `dt` capped at 0.05) → `update(dt)` then `draw()`. `over()` ends solo games and keeps best scores in localStorage (`chase-best` / `shark-best`). `halt()` stops the loop on the final frame. Solo games can pause (`pause`/`resume`/`quit`: the Pause button, P or Esc, and automatically when the tab is hidden). Pausing just stops the rAF loop, and `dash` and `buy` ignore input while paused. Duels never pause.
 - **`src/render.ts`:** `draw(g, scene)` paints the world in world coords, then the HUD in screen coords. `view` holds the viewport, zoom, dpr and camera. Canvas colors are hardcoded here.
 - **`src/input.ts`:** keyboard and pointer. `moveIntent(s, view)` turns them into a unit direction. Keys override the pointer.
 - **`src/shop.ts`:** `tryBuy` (pure) and `renderShop`. Re-render whenever coins or upgrade levels change.
