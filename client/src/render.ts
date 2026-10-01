@@ -146,6 +146,24 @@ function drawShark(g: Ctx, k: SharkPose) {
 /** The player as a shark, with its tail speeding up while dashing. */
 const playerShark = (s: GameState): SharkPose => ({ x: s.x, y: s.y, angle: s.angle, wave: s.time * (s.dashTime > 0 ? 13 : 5) })
 
+/** Red arrows on the screen edge pointing at sharks that are out of view. Screen coords. */
+function drawSharkPointers(g: Ctx, s: GameState) {
+  const { w: VW, h: VH, zoom: Z } = view
+  const inset = 18, cx = VW / 2, cy = VH / 2
+  for (const k of s.sharks) {
+    const sx = (k.x - view.camX) * Z, sy = (k.y - view.camY) * Z
+    if (sx >= 0 && sx <= VW && sy >= 0 && sy <= VH) continue
+    const dx = sx - cx, dy = sy - cy
+    // Scale the direction from the centre until it touches the inset rectangle.
+    const f = Math.min((cx - inset) / Math.abs(dx || 1e-6), (cy - inset) / Math.abs(dy || 1e-6))
+    g.save()
+    g.translate(cx + dx * f, cy + dy * f); g.rotate(Math.atan2(dy, dx))
+    g.fillStyle = 'rgba(220,40,40,.9)'; g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 2
+    g.beginPath(); g.moveTo(12, 0); g.lineTo(-8, -9); g.lineTo(-8, 9); g.closePath(); g.fill(); g.stroke()
+    g.restore()
+  }
+}
+
 export function draw(g: Ctx, { mode, s, duel }: Scene) {
   const { w: VW, h: VH, zoom: Z, dpr } = view
   updateCamera(s)
@@ -206,6 +224,8 @@ export function draw(g: Ctx, { mode, s, duel }: Scene) {
     rg.addColorStop(0, 'rgba(160,20,20,0)'); rg.addColorStop(1, 'rgba(160,20,20,' + a + ')')
     g.fillStyle = rg; g.fillRect(0, 0, VW, VH)
   }
+
+  if (mode === 'turtle') drawSharkPointers(g, s)
 
   g.fillStyle = '#e9efe6'; g.font = '700 20px Fredoka,sans-serif'
   const timeText = duel ? Math.ceil(Math.max(0, duel.left)) + 's, ' + duel.role
